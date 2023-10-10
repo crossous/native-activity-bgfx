@@ -7,7 +7,7 @@ android {
     ndkVersion '26.0.10792818'
 
     defaultConfig {
-        applicationId = 'com.example.native_activity'
+        applicationId = 'com.example.native_activity_bgfx'
         minSdkVersion 14
         targetSdkVersion 33
         externalNativeBuild {

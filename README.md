@@ -1,60 +1,79 @@
-# Native Activity
+# Native Activity BGFX
 
-Native Activity is an Android sample that initializes a GLES 2.0 context and
-reads accelerometer data from C code using
-[Native Activity](http://developer.android.com/reference/android/app/NativeActivity.html).
+Use [Native Activity](https://github.com/android/ndk-samples/tree/main/native-activity) build bgfx examples.
 
-This sample uses the new
-[Android Studio CMake plugin](http://tools.android.com/tech-docs/external-c-builds)
-with C++ support.
+bgfx default android build .so, need to use it build .apk.
 
 ## Pre-requisites
 
-- Android Studio 2.2+ with [NDK](https://developer.android.com/ndk/) bundle.
+- Android Studio 2022.(maybe can lower)
+- NDK and `ANDROID_NDK_ROOT` env
 
-## Getting Started
+## Get start
 
-1. [Download Android Studio](http://developer.android.com/sdk/index.html)
-1. Launch Android Studio.
-1. Open the sample directory.
-1. Open *File/Project Structure...*
+```
+git clone https://github.com/crossous/native-activity-bgfx.git
+cd native-activity-bgfx
+git submodule update --init --recursive
+```
 
-- Click *Download* or *Select NDK location*.
+Open project in Android Studio.
 
-1. Click *Tools/Android/Sync Project with Gradle Files*.
-1. Click *Run/Run 'app'*.
+Before we build, we need to make a few modify.
 
-## Screenshots
+bgfx example depend asset need to copy to sdcard, it set work space in `bgfx.cmake\bgfx\examples\common\entry\entry_android.cpp`, find string `chdir("/sdcard/bgfx/examples/runtime")`.
 
-![screenshot](screenshot.png)
+After Android 11+, app can not access sdcard dir, need to access `/sdcard/Android/data/<package name>/files`.
 
-## Support
+I can not submit it change to git because this code is submodule, so we modify this code in local repo.
 
-If you've found an error in these samples, please
-[file an issue](https://github.com/googlesamples/android-ndk/issues/new).
+```C++
+// entry_android.cpp
 
-Patches are encouraged, and may be submitted by
-[forking this project](https://github.com/googlesamples/android-ndk/fork) and
-submitting a pull request through GitHub. Please see
-[CONTRIBUTING.md](../CONTRIBUTING.md) for more details.
+const std::string GetExtStoragePath()
+{
+    android_app* app = s_ctx.m_app;
+    ANativeActivity* activity = app->activity;
+    JNIEnv* env = nullptr;
 
-- [Stack Overflow](http://stackoverflow.com/questions/tagged/android-ndk)
-- [Android Tools Feedbacks](http://tools.android.com/feedback)
+    (*activity->vm).AttachCurrentThread(&env, 0);
 
-## License
+    jclass clazz = env->GetObjectClass(activity->clazz);
+    jmethodID methodID = env->GetMethodID(clazz, "getExternalFilesDir", "(Ljava/lang/String;)Ljava/io/File;");
+    jobject file = env->CallObjectMethod(activity->clazz, methodID, NULL);
 
-Copyright 2015 Google, Inc.
+    jclass fileClass = env->FindClass("java/io/File");
+    jmethodID getAbsolutePath = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
+    jobject result = env->CallObjectMethod(file, getAbsolutePath);
 
-Licensed to the Apache Software Foundation (ASF) under one or more contributor
-license agreements. See the NOTICE file distributed with this work for
-additional information regarding copyright ownership. The ASF licenses this file
-to you under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at
+    jboolean isCopy;
+    std::string res = env->GetStringUTFChars((jstring)result, &isCopy);
 
-http://www.apache.org/licenses/LICENSE-2.0
+    env->DeleteLocalRef(file);
+    env->DeleteLocalRef(result);
 
-Unless required by applicable law or agreed to in writing, software distributed
-under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
+    return res;
+}
+
+// in MainThreadEntry::threadFunc
+
+//int32_t result = chdir("/sdcard/bgfx/examples/runtime");
+const std::string resPath = GetExtStoragePath() + "/bgfx/examples/runtime";
+int32_t result = chdir(resPath.c_str());
+BX_ASSERT(0 == result
+    , "Failed to chdir to directory (errno: %d, path: %s, android.permission.WRITE_EXTERNAL_STORAGE?)."
+    , errno
+    , resPath.c_str()
+    );
+```
+
+Then build project in Android Studio in `Build` > `Make Project`, and install to mobile.
+
+Before you run app you need copy example asset to mobile, you can use adb command:`adb push examples/runtime /sdcard/Android/data/<package name>/files/bgfx/examples/runtime`, in this project, run this:
+```
+adb push examples/runtime /sdcard/Android/data/com.example.native_activity_bgfx/files/bgfx/examples/runtim
+```
+
+Run app:
+
+![screenshot](screenshot.jpg)
