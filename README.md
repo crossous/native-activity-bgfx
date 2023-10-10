@@ -69,9 +69,11 @@ BX_ASSERT(0 == result
 
 Then build project in Android Studio in `Build` > `Make Project`, and install to mobile.
 
+## Run
+
 Before you run app you need copy example asset to mobile, you can use adb command:`adb push examples/runtime /sdcard/Android/data/<package name>/files/bgfx/examples/runtime`, in this project, run this:
 ```
-adb push examples/runtime /sdcard/Android/data/com.example.native_activity_bgfx/files/bgfx/examples/runtim
+adb push examples/runtime /sdcard/Android/data/com.example.native_activity_bgfx/files/bgfx/examples/runtime
 ```
 
 Run app:
